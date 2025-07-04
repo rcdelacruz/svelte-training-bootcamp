@@ -1,5 +1,9 @@
 <script>
+	import { createEventDispatcher } from 'svelte';
+	
 	export let task;
+
+	const dispatch = createEventDispatcher();
 
 	// Local state for editing
 	let isEditing = false;
@@ -22,8 +26,23 @@
 
 	// Save changes
 	function saveEdit() {
-		task.title = editTitle;
-		task.description = editDescription;
+		if (editTitle.trim() === '') {
+			editTitle = task.title; // Revert if empty
+			return;
+		}
+
+		// Dispatch update event
+		dispatch('taskUpdated', {
+			taskId: task.id,
+			updates: {
+				title: editTitle.trim(),
+				description: editDescription.trim()
+			}
+		});
+
+		// Update local task object
+		task.title = editTitle.trim();
+		task.description = editDescription.trim();
 		isEditing = false;
 	}
 
@@ -32,6 +51,15 @@
 		editTitle = task.title;
 		editDescription = task.description;
 		isEditing = false;
+	}
+
+	// Handle task deletion
+	function deleteTask() {
+		if (confirm('Are you sure you want to delete this task?')) {
+			dispatch('taskDeleted', {
+				taskId: task.id
+			});
+		}
 	}
 
 	// Handle keyboard events
@@ -51,12 +79,14 @@
 
 	// Format date
 	function formatDate(dateString) {
+		if (!dateString) return '';
 		const date = new Date(dateString);
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	}
 
 	// Check if task is overdue
 	function isOverdue(dueDate) {
+		if (!dueDate) return false;
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 		const due = new Date(dueDate);
@@ -114,16 +144,18 @@
 				<span class="priority-dot"></span>
 				{task.priority}
 			</div>
-			<div class="task-due-date" class:overdue={isOverdue(task.dueDate)}>
-				📅 {formatDate(task.dueDate)}
-			</div>
+			{#if task.dueDate}
+				<div class="task-due-date" class:overdue={isOverdue(task.dueDate)}>
+					📅 {formatDate(task.dueDate)}
+				</div>
+			{/if}
 		</div>
 		
 		<div class="task-actions">
 			<button class="action-btn" on:click={startEdit} title="Edit task">
 				✏️
 			</button>
-			<button class="action-btn danger" title="Delete task">
+			<button class="action-btn danger" on:click={deleteTask} title="Delete task">
 				🗑️
 			</button>
 		</div>
